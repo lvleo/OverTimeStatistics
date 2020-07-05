@@ -5,7 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Bundle
+import android.provider.AlarmClock
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,6 +17,9 @@ import com.leo.overtime.statistics.adapter.ScheduleAdapter
 import com.leo.overtime.statistics.bean.ScheduleBean
 import com.leo.overtime.statistics.http.NetCallback
 import com.leo.overtime.statistics.http.api
+import com.leo.overtime.statistics.util.getClockPackageInfo
+import com.leo.overtime.statistics.util.getClockPackageName
+import com.leo.overtime.statistics.util.saveClockPackageName
 import com.leo.overtime.statistics.util.showToast
 import kotlinx.android.synthetic.main.activity_main.btn_commute_operation
 import kotlinx.android.synthetic.main.activity_main.recycler_history
@@ -23,6 +28,8 @@ import kotlinx.android.synthetic.main.activity_main.txt_over_time_effective
 import kotlinx.android.synthetic.main.activity_main.txt_over_time_month
 import kotlinx.android.synthetic.main.activity_main.txt_over_time_total
 import kotlinx.android.synthetic.main.activity_main_scrollview.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.litepal.LitePal
 import java.text.SimpleDateFormat
 import java.util.*
@@ -72,8 +79,7 @@ class MainActivity : AppCompatActivity() {
 
 
     private var data = mutableListOf<ScheduleBean>()
-    private val adapter =
-        ScheduleAdapter(data)
+    private val adapter = ScheduleAdapter(data)
 
     private var scheduleMonths = mutableListOf<ScheduleBean>()
     private var scheduleLastMonths = mutableListOf<ScheduleBean>()
@@ -118,22 +124,7 @@ class MainActivity : AppCompatActivity() {
 
 
         txt_toolbar_end.setOnClickListener {
-
             showLeaveDateSelector()
-
-//            var mCalendar = Calendar.getInstance()
-//            val dialog = TimePickerDialog(
-//                this,
-//                OnTimeSetListener { timePicker, i, i1 ->
-//                    mCalendar.set(Calendar.HOUR, i)
-//                    mCalendar.set(Calendar.MINUTE, i1)
-//                    val format = SimpleDateFormat("yyyy年MM月dd日HH:mm")
-//                    showToast("" + format.format(mCalendar.getTime()))
-//                }, mCalendar.get(Calendar.HOUR), mCalendar.get(Calendar.MINUTE), true
-//            )
-//            dialog.show()
-
-
         }
 
         btn_commute_operation.setOnClickListener {
@@ -166,6 +157,19 @@ class MainActivity : AppCompatActivity() {
 
         // 绑定 时间变化广播器
         registerReceiver(receiverTime, IntentFilter(Intent.ACTION_TIME_TICK))
+
+        GlobalScope.launch {
+            Log.e(TAG, "onCreate: isEmpty======${getClockPackageName().isEmpty()}")
+
+            if (getClockPackageName().isEmpty()) {
+                val packageName = getClockPackageInfo(this@MainActivity)
+                Log.e(TAG, "onCreate: packageName======${packageName}")
+                if (packageName.isNotEmpty()) {
+                    saveClockPackageName(packageName)
+                }
+            }
+
+        }
 
     }
 
@@ -235,7 +239,6 @@ class MainActivity : AppCompatActivity() {
         stampMonth = sdfMonth.parse(stampMonthStr)!!.time
 //        Log.e(TAG, "initParams: stampMonthStr======${stampMonthStr}")
         Log.d(TAG, "initParams: stampMonth======$stampMonth")
-
 
         val calendar = Calendar.getInstance()
         val month = calendar.get(Calendar.MONTH)
@@ -314,8 +317,7 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "getTodayData: todayInfo=======----$todayInfo")
         getDayStatus(todayInfo.replace("-", ""))
 
-//        scheduleToday = LitePal.where("timeDay = ?", stampToday.toString())
-//            .findFirst(ScheduleBean::class.java)
+//        scheduleToday = LitePal.where("timeDay = ?", stampToday.toString()).findFirst(ScheduleBean::class.java)
 
         hasOn = scheduleToday != null
         Log.d(TAG, "getTodayData: hasOn===========----$hasOn")
@@ -328,7 +330,6 @@ class MainActivity : AppCompatActivity() {
             txt_on_off_time.text = ""
             txt_over_time_total.text = ""
             txt_over_time_effective.text = ""
-
         }
     }
 
@@ -401,7 +402,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * @param needSave 是否需要保存更新当前实体数据
+     * @param needSave 是否需要保存更新当前实体数据 （true：下班；false：上班）
      */
     private fun updateSchedule(needSave: Boolean) {
 //        Log.d(TAG, "updateSchedule: today=============${Date(scheduleToday!!.timeDay)}")
@@ -457,13 +458,48 @@ class MainActivity : AppCompatActivity() {
         scheduleToday!!.hours = halfHourCount * 0.5
         Log.d(TAG, "updateSchedule: hours=============${scheduleToday!!.hours}")
 
+
+        val offCalendar: Calendar = Calendar.getInstance()
+        offCalendar.time = Date(timeOff)
+        val offHour = offCalendar.get(Calendar.HOUR_OF_DAY)
+        Log.e(TAG, "updateSchedule: offHour========${offHour}")
+
+        val offHours = offCalendar.get(Calendar.HOUR)
+        Log.e(TAG, "updateSchedule: offHours=======${offHours}")
+
+        var alarmHour = 7
+
+        if (offHour == 11) {
+            alarmHour = 8
+        }
+        if (offHour == 12) {
+            alarmHour = 9
+        }
+        if (offHour == 0) {
+            alarmHour = 9
+        }
+        if (offHour == 1) {
+            alarmHour = 10
+        }
+        if (offHour == 2) {
+            alarmHour = 11
+        }
+
+        Log.e(TAG, "updateSchedule: alarmHour======${alarmHour}")
+
         if (needSave) {
 //            scheduleToday!!.save()
             scheduleToday!!.saveAsync().listen { success ->
                 Log.i(TAG, "updateSchedule: 是否保存成功========${success}")
                 if (success) {
                     getHistoryData()
+
+                    startSystemClock()
+
+//                    createAlarm("前晚加班到${offHour}点", alarmHour, 40, 0)
+
                 }
+
             }
         }
 
@@ -645,5 +681,59 @@ class MainActivity : AppCompatActivity() {
         datePickerDialog.show()
     }
 
+
+    /**
+     * 打开系统闹钟应用
+     */
+    private fun startSystemClock() {
+        Log.i(TAG, "startSystemClock: getClockPackageName======${getClockPackageName()}")
+        if (getClockPackageName().isEmpty()) {
+            showToast("未找到可用的闹钟应用")
+            return
+        }
+        try {
+            val clockIntent = packageManager.getLaunchIntentForPackage(getClockPackageName())
+            startActivity(clockIntent)
+        } catch (e: Exception) {
+            showToast("系统闹钟启动失败")
+        }
+    }
+
+    /**
+     * 创建闹铃
+     */
+    private fun createAlarm(message: String, hour: Int, minutes: Int, resId: Int) {
+        val testDays = ArrayList<Int>()
+        testDays.add(Calendar.MONDAY) //周一
+        testDays.add(Calendar.TUESDAY) //周二
+        testDays.add(Calendar.FRIDAY) //周五
+
+        val packageName = application.packageName
+        val ringtoneUri = Uri.parse("android.resource://$packageName/$resId")
+        //action为AlarmClock.ACTION_SET_ALARM
+        val intent = Intent(AlarmClock.ACTION_SET_ALARM)
+            //闹钟的小时
+            .putExtra(AlarmClock.EXTRA_HOUR, hour)
+            //闹钟的分钟
+            .putExtra(AlarmClock.EXTRA_MINUTES, minutes)
+            //响铃时提示的信息
+            .putExtra(AlarmClock.EXTRA_MESSAGE, message)
+            //用于指定该闹铃触发时是否振动
+            .putExtra(AlarmClock.EXTRA_VIBRATE, true)
+            //一个 content: URI，用于指定闹铃使用的铃声，也可指定 VALUE_RINGTONE_SILENT 以不使用铃声。
+            // 如需使用默认铃声，则无需指定此 extra。
+            .putExtra(AlarmClock.EXTRA_RINGTONE, ringtoneUri)
+//            //一个 ArrayList，其中包括应重复触发该闹铃的每个周日。
+//            // 每一天都必须使用 Calendar 类中的某个整型值（如 MONDAY）进行声明。
+//            // 对于一次性闹铃，无需指定此 extra
+//            .putExtra(AlarmClock.EXTRA_DAYS, testDays)
+            //如果为true，则调用startActivity()不会进入手机的闹钟设置界面
+            .putExtra(AlarmClock.EXTRA_SKIP_UI, false)
+
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        }
+
+    }
 
 }
