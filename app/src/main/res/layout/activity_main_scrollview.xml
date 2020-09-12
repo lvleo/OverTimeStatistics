@@ -60,7 +60,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:padding="8dp"
+            android:padding="6dp"
             android:textSize="16sp"
             tools:text="考勤时间：8:50 ～ 20:45" />
 
@@ -69,7 +69,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:padding="8dp"
+            android:padding="6dp"
             android:textSize="16sp"
             tools:text="今日已加班： 01:35:00" />
 
@@ -78,18 +78,17 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:padding="8dp"
-            android:textSize="22sp"
+            android:padding="6dp"
+            android:textSize="20sp"
             android:textStyle="bold"
             tools:text="有效加班：1.5小时" />
 
         <Button
             android:id="@+id/btn_commute_operation"
-            android:layout_width="300dp"
+            android:layout_width="320dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:text="立即打卡" />
+            android:text="立即打卡"
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/txt_over_time_yesterday"
@@ -118,7 +117,7 @@
             android:layout_marginBottom="12dp"
             android:gravity="center"
             android:padding="6dp"
-            android:text="上月加班："
+            android:text="历史考勤"
             android:textSize="16sp" />
 
         <View
@@ -127,6 +126,11 @@
             android:background="@android:color/darker_gray" />
 
         <include layout="@layout/item_history_overtime_title" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@android:color/darker_gray" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recycler_history"

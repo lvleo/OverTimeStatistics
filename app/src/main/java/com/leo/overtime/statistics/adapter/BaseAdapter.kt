@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import androidx.recyclerview.widget.RecyclerView
 
-
+@Deprecated("弃用", ReplaceWith("BaseQuickAdapter"))
 abstract class BaseAdapter<T>(var data: List<T>) : RecyclerView.Adapter<BaseAdapter<T>.Helper>() {
 
     lateinit var context: Context

@@ -68,8 +68,8 @@ class MainActivity : AppCompatActivity() {
     private var stampToday by Delegates.notNull<Long>()
     private var stampYesterday by Delegates.notNull<Long>()
     private var stampMonth by Delegates.notNull<Long>()
-    private var stampLastMonth by Delegates.notNull<Long>()
-    private var stampYear by Delegates.notNull<Long>()
+//    private var stampLastMonth by Delegates.notNull<Long>()
+//    private var stampYear by Delegates.notNull<Long>()
 
     //数据库存储的当天打卡数据实体
     private var scheduleToday: ScheduleBean? = null
@@ -77,12 +77,11 @@ class MainActivity : AppCompatActivity() {
     //是否已经打了上班卡
     private var hasOn = true
 
-
     private var data = mutableListOf<ScheduleBean>()
     private val adapter = ScheduleAdapter(data)
 
     private var scheduleMonths = mutableListOf<ScheduleBean>()
-    private var scheduleLastMonths = mutableListOf<ScheduleBean>()
+//    private var scheduleLastMonths = mutableListOf<ScheduleBean>()
 
     /**
      * 时间变化广播
@@ -122,9 +121,8 @@ class MainActivity : AppCompatActivity() {
 
         recycler_history.adapter = adapter
 
-
         txt_toolbar_end.setOnClickListener {
-            showLeaveDateSelector()
+            initDatePicker()
         }
 
         btn_commute_operation.setOnClickListener {
@@ -133,34 +131,37 @@ class MainActivity : AppCompatActivity() {
         }
 
         txt_over_time_month.setOnClickListener {
-
             data.clear()
             //去除当天还未打下班卡的数据
             scheduleMonths.filter { !(it.timeOff == 0L && it.timeDay == stampToday) }.forEach {
                 data.add(it)
             }
             adapter.notifyDataSetChanged()
-
         }
 
         txt_over_time_last_month.setOnClickListener {
+//            data.clear()
+////            //去除当天还未打下班卡的数据
+////            scheduleLastMonths.filter { !(it.timeOff == 0L && it.timeDay == stampToday) }.forEach {
+////                data.add(it)
+////            }
+//            data.addAll(scheduleLastMonths)
+//            adapter.notifyDataSetChanged()
 
-            data.clear()
-//            //去除当天还未打下班卡的数据
-//            scheduleLastMonths.filter { !(it.timeOff == 0L && it.timeDay == stampToday) }.forEach {
-//                data.add(it)
-//            }
-            data.addAll(scheduleLastMonths)
-            adapter.notifyDataSetChanged()
+            startActivity(Intent(this, HistorySchedulesActivity::class.java))
 
         }
+
+//        txt_over_time_last_month.setOnLongClickListener {
+//            startActivity(Intent(this, HistorySchedulesActivity::class.java))
+//            true
+//        }
 
         // 绑定 时间变化广播器
         registerReceiver(receiverTime, IntentFilter(Intent.ACTION_TIME_TICK))
 
         GlobalScope.launch {
             Log.e(TAG, "onCreate: isEmpty======${getClockPackageName().isEmpty()}")
-
             if (getClockPackageName().isEmpty()) {
                 val packageName = getClockPackageInfo(this@MainActivity)
                 Log.e(TAG, "onCreate: packageName======${packageName}")
@@ -168,7 +169,6 @@ class MainActivity : AppCompatActivity() {
                     saveClockPackageName(packageName)
                 }
             }
-
         }
 
     }
@@ -176,16 +176,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "onResume    : ======onResume======")
 
         initParams()
 
         Log.d(TAG, "onResume    : stampToday==========$stampToday")
-//        var testTime = SimpleDateFormat(
-//            "yyyy-MM-dd HH:mm:ss",
-//            Locale.getDefault()
-//        ).parse("2020-04-18 13:36:00")
-//
+//        var testTime = sdfAll.parse("2020-04-18 13:36:00")
 //        Log.e(tags, "onResume: testTime======${testTime}")
 //        Log.e(tags, "onResume: testTime======${testTime.time}")
 
@@ -229,7 +224,6 @@ class MainActivity : AppCompatActivity() {
 
 //        Log.d(tags, "initParams: todayInfo=======$todayInfo")
 //        todayInfo = "20200425"
-
 //        getDayStatus(todayInfo.replace("-", ""))
 
         stampYesterday = stampToday - 24 * 60 * 60 * 1000
@@ -240,14 +234,13 @@ class MainActivity : AppCompatActivity() {
 //        Log.e(TAG, "initParams: stampMonthStr======${stampMonthStr}")
         Log.d(TAG, "initParams: stampMonth======$stampMonth")
 
-        val calendar = Calendar.getInstance()
-        val month = calendar.get(Calendar.MONTH)
-        calendar.set(Calendar.MONTH, month - 1)
-
-        val stampLastMonthStr = sdfMonth.format(calendar.time)
-        stampLastMonth = sdfMonth.parse(stampLastMonthStr)!!.time
-//        Log.e(TAG, "initParams: stampLastMonthStr==${stampLastMonthStr}")
-        Log.d(TAG, "initParams: stampLastMonth==$stampLastMonth")
+//        val calendar = Calendar.getInstance()
+//        val month = calendar.get(Calendar.MONTH)
+//        calendar.set(Calendar.MONTH, month - 1)
+//        val stampLastMonthStr = sdfMonth.format(calendar.time)
+//        stampLastMonth = sdfMonth.parse(stampLastMonthStr)!!.time
+////        Log.e(TAG, "initParams: stampLastMonthStr==${stampLastMonthStr}")
+//        Log.d(TAG, "initParams: stampLastMonth==$stampLastMonth")
 
     }
 
@@ -281,6 +274,18 @@ class MainActivity : AppCompatActivity() {
 //            } else {
 //                btn_commute_operation.text = "打上班卡"
 //            }
+
+            Log.d(TAG, "getDayStatus  : hasOn===========$hasOn")
+            if (hasOn) {
+                btn_commute_operation.text = "打下班卡"
+                updateSchedule(false)
+            } else {
+                btn_commute_operation.text = "打上班卡"
+
+                txt_on_off_time.text = ""
+                txt_over_time_total.text = ""
+                txt_over_time_effective.text = ""
+            }
 
         })
     }
@@ -384,20 +389,19 @@ class MainActivity : AppCompatActivity() {
 
         adapter.notifyDataSetChanged()
 
-
-        //显示上月有效加班时长
-        scheduleLastMonths =
-            LitePal.order("id desc").where("timeMonth = ?", stampLastMonth.toString())
-                .find(ScheduleBean::class.java)
-
-        var totalOfLastMonth = 0.0
-        scheduleLastMonths.forEach {
-            val totalDay = it.hours
-//            * it.multiple //节假日工资和加班时长另算
-            totalOfLastMonth += totalDay
-        }
-        Log.i(TAG, "getHistoryData: totalOfLastMonth=${totalOfLastMonth}")
-        txt_over_time_last_month.text = "上月加班：$totalOfLastMonth 小时"
+//        //显示上月有效加班时长
+//        scheduleLastMonths =
+//            LitePal.order("id desc").where("timeMonth = ?", stampLastMonth.toString())
+//                .find(ScheduleBean::class.java)
+//
+//        var totalOfLastMonth = 0.0
+//        scheduleLastMonths.forEach {
+//            val totalDay = it.hours
+////            * it.multiple //节假日工资和加班时长另算
+//            totalOfLastMonth += totalDay
+//        }
+//        Log.i(TAG, "getHistoryData: totalOfLastMonth=${totalOfLastMonth}")
+//        txt_over_time_last_month.text = "上月加班：$totalOfLastMonth 小时"
 
     }
 
@@ -427,9 +431,7 @@ class MainActivity : AppCompatActivity() {
 
 //        Log.d(TAG, "updateSchedule: timeOff===========${timeOff}")
 //        Log.d(TAG, "updateSchedule: timeOn============${timeOn}")
-
         val offToOnTime = timeOff - timeOn
-
         Log.d(TAG, "updateSchedule: offToOnTime=======${offToOnTime}")
 
 //        val totalMilliseconds = if (isWeekend || isHoliday) {
@@ -438,10 +440,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             offToOnTime - leastMilliseconds
         }
-
         Log.d(TAG, "updateSchedule: totalMilliseconds=${totalMilliseconds}")
 
-        //已加班多少个 0。5小时 半小时
+        //已加班多少个 0.5小时 半小时
         var halfHourCount = 0L
         if (totalMilliseconds > 0) {
             txt_over_time_total.text = "今日已加班：" + sdfHMS.format(Date(totalMilliseconds))
@@ -458,35 +459,6 @@ class MainActivity : AppCompatActivity() {
         scheduleToday!!.hours = halfHourCount * 0.5
         Log.d(TAG, "updateSchedule: hours=============${scheduleToday!!.hours}")
 
-
-        val offCalendar: Calendar = Calendar.getInstance()
-        offCalendar.time = Date(timeOff)
-        val offHour = offCalendar.get(Calendar.HOUR_OF_DAY)
-        Log.e(TAG, "updateSchedule: offHour========${offHour}")
-
-        val offHours = offCalendar.get(Calendar.HOUR)
-        Log.e(TAG, "updateSchedule: offHours=======${offHours}")
-
-        var alarmHour = 7
-
-        if (offHour == 11) {
-            alarmHour = 8
-        }
-        if (offHour == 12) {
-            alarmHour = 9
-        }
-        if (offHour == 0) {
-            alarmHour = 9
-        }
-        if (offHour == 1) {
-            alarmHour = 10
-        }
-        if (offHour == 2) {
-            alarmHour = 11
-        }
-
-        Log.e(TAG, "updateSchedule: alarmHour======${alarmHour}")
-
         if (needSave) {
 //            scheduleToday!!.save()
             scheduleToday!!.saveAsync().listen { success ->
@@ -496,6 +468,9 @@ class MainActivity : AppCompatActivity() {
 
                     startSystemClock()
 
+//                    val pair = initAlarmHour(timeOff)
+//                    val offHour = pair.first
+//                    val alarmHour = pair.second
 //                    createAlarm("前晚加班到${offHour}点", alarmHour, 40, 0)
 
                 }
@@ -525,9 +500,7 @@ class MainActivity : AppCompatActivity() {
                 builder.setTitle("温馨提醒")
                 builder.setMessage("已经打过下班卡，确定要更新下班时间吗？")
                 builder.setNegativeButton("取消", null)
-
-                //                    builder.setNegativeButton("取消") { dialog, which -> }
-
+//                builder.setNegativeButton("取消") { dialog, which -> }
                 builder.setPositiveButton("确定") { _, _ ->
                     scheduleToday!!.timeOff = Date().time
                     scheduleToday!!.saveAsync().listen { success ->
@@ -595,9 +568,9 @@ class MainActivity : AppCompatActivity() {
 
 
     /**
-     * 显示请假时间选择器
+     * 显示请假日期选择器
      */
-    private fun showLeaveDateSelector() {
+    private fun initDatePicker() {
         val mCalendar = Calendar.getInstance()
         val mYear = mCalendar[Calendar.YEAR]
         val mMonth = mCalendar[Calendar.MONTH]
@@ -609,70 +582,19 @@ class MainActivity : AppCompatActivity() {
                 val data = (month + 1).toString() + "月-" + dayOfMonth + "日"
                 Log.e(TAG, "onCreate: data======${data}")
 
-                val newCal = Calendar.getInstance();
-                newCal.set(Calendar.YEAR, year)
-                newCal.set(Calendar.MONTH, mMonth)
-                newCal.set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                val newCalendar = Calendar.getInstance();
+                newCalendar.set(Calendar.YEAR, year)
+                newCalendar.set(Calendar.MONTH, mMonth)
+                newCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
 
-                newCal.set(Calendar.HOUR_OF_DAY, 0)
-                newCal.set(Calendar.MINUTE, 0)
-                newCal.set(Calendar.SECOND, 0)
-                newCal.set(Calendar.MILLISECOND, 0)
-                Log.e(TAG, "onCreate: newCal.date======${newCal.time}")
-                Log.e(TAG, "onCreate: newCal.time======${newCal.time.time}")
+                newCalendar.set(Calendar.HOUR_OF_DAY, 0)
+                newCalendar.set(Calendar.MINUTE, 0)
+                newCalendar.set(Calendar.SECOND, 0)
+                newCalendar.set(Calendar.MILLISECOND, 0)
+                Log.e(TAG, "onCreate: newCal.date======${newCalendar.time}")
+                Log.e(TAG, "onCreate: newCal.time======${newCalendar.time.time}")
 
-                val picker = NumberPicker(this)
-                //                    picker.setWidth(picker.getScreenWidthPixels() / 2)
-                picker.setCycleDisable(false)
-                picker.setDividerVisible(false)
-                picker.setOffset(3) //偏移量
-
-                picker.setRange(0.5, 8.0, 0.5) //数字范围
-
-                picker.setTextSize(20)
-
-                picker.setLabel("小时")
-                picker.setOnNumberPickListener(object : NumberPicker.OnNumberPickListener() {
-                    override fun onNumberPicked(index: Int, item: Number?) {
-                        Log.e(TAG, "onNumberPicked: index======${index}")
-                        Log.e(TAG, "onNumberPicked: item=======${item}")
-                        showToast("index=" + index + ", item=" + item.toString())
-
-                        val dateOfTime = newCal.time.time
-
-                        val scheduleLeave = ScheduleBean()
-                        scheduleLeave.timeOn = 0
-                        scheduleLeave.timeOff = 0
-                        scheduleLeave.timeDay = dateOfTime
-
-                        scheduleLeave.multiple = 1.0
-                        scheduleLeave.hours = -item!!.toDouble()
-
-                        val stampMonthStr = sdfMonth.format(newCal.time)
-                        scheduleLeave.timeMonth = sdfMonth.parse(stampMonthStr)!!.time
-
-                        val stampYearStr = sdfYear.format(newCal.time)
-                        scheduleLeave.timeYear = sdfYear.parse(stampYearStr)!!.time
-
-                        Log.e(
-                            TAG,
-                            "onNumberPicked: scheduleLeave======${Gson().toJson(scheduleLeave)}"
-                        )
-
-                        scheduleLeave.saveAsync().listen { success ->
-                            if (success) {
-                                showToast("调休成功")
-                                getHistoryData()
-
-                            } else {
-                                showToast("调休失败，请重试")
-                            }
-                        }
-
-                    }
-                })
-
-                picker.show()
+                initHoursPicker(newCalendar)
 
             },
             mYear, mMonth, mDay
@@ -681,6 +603,58 @@ class MainActivity : AppCompatActivity() {
         datePickerDialog.show()
     }
 
+    /**
+     * 显示请假时长选择器
+     * @param newCalendar 是否需要保存更新当前实体数据 （true：下班；false：上班）
+     */
+    private fun initHoursPicker(newCalendar: Calendar) {
+        val picker = NumberPicker(this)
+//        picker.setWidth(picker.getScreenWidthPixels() / 2)
+        picker.setCycleDisable(false)
+        picker.setDividerVisible(false)
+        picker.setOffset(3) //偏移量
+        picker.setLabel("小时")
+        picker.setTextSize(20)
+        picker.setRange(0.5, 8.0, 0.5) //数字范围
+
+        picker.setOnNumberPickListener(object : NumberPicker.OnNumberPickListener() {
+            override fun onNumberPicked(index: Int, item: Number?) {
+                Log.e(TAG, "onNumberPicked: index======${index}")
+                Log.e(TAG, "onNumberPicked: item=======${item}")
+                showToast("index=" + index + ", item=" + item.toString())
+
+                val dateOfTime = newCalendar.time.time
+
+                val scheduleLeave = ScheduleBean()
+                scheduleLeave.timeOn = 0
+                scheduleLeave.timeOff = 0
+                scheduleLeave.timeDay = dateOfTime
+
+                scheduleLeave.multiple = 1.0
+                scheduleLeave.hours = -item!!.toDouble()
+
+                val stampMonthStr = sdfMonth.format(newCalendar.time)
+                scheduleLeave.timeMonth = sdfMonth.parse(stampMonthStr)!!.time
+
+                val stampYearStr = sdfYear.format(newCalendar.time)
+                scheduleLeave.timeYear = sdfYear.parse(stampYearStr)!!.time
+
+                Log.e(TAG, "onNumberPicked: =${Gson().toJson(scheduleLeave)}")
+
+                scheduleLeave.saveAsync().listen { success ->
+                    if (success) {
+                        showToast("调休成功")
+                        getHistoryData()
+                    } else {
+                        showToast("调休失败，请重试")
+                    }
+                }
+
+            }
+        })
+
+        picker.show()
+    }
 
     /**
      * 打开系统闹钟应用
@@ -697,6 +671,36 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             showToast("系统闹钟启动失败")
         }
+    }
+
+    private fun initAlarmHour(timeOff: Long): Pair<Int, Int> {
+        val offCalendar: Calendar = Calendar.getInstance()
+        offCalendar.time = Date(timeOff)
+        val offHour = offCalendar.get(Calendar.HOUR_OF_DAY)
+        Log.e(TAG, "updateSchedule: offHour========${offHour}")
+
+        val offHours = offCalendar.get(Calendar.HOUR)
+        Log.e(TAG, "updateSchedule: offHours=======${offHours}")
+
+        var alarmHour = 7
+
+        if (offHour == 11) {
+            alarmHour = 8
+        }
+        if (offHour == 12) {
+            alarmHour = 9
+        }
+        if (offHour == 0) {
+            alarmHour = 9
+        }
+        if (offHour == 1) {
+            alarmHour = 10
+        }
+        if (offHour == 2) {
+            alarmHour = 11
+        }
+        Log.e(TAG, "updateSchedule: alarmHour======${alarmHour}")
+        return Pair(offHour, alarmHour)
     }
 
     /**
