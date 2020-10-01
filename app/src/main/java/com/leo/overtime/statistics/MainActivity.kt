@@ -121,6 +121,36 @@ class MainActivity : AppCompatActivity() {
 
         recycler_history.adapter = adapter
 
+        adapter.setOnItemLongClickListener { _, _, position ->
+
+            val scheduleBean = adapter.getItem(position)
+            Log.e(TAG, "onCreate: scheduleBean======${Gson().toJson(scheduleBean)}")
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("温馨提醒")
+            builder.setMessage("数据删除后无法恢复，确定删除此条考勤数据吗？")
+            builder.setNegativeButton("取消", null)
+//                builder.setNegativeButton("取消") { dialog, which -> }
+            builder.setPositiveButton("确定") { _, _ ->
+
+                scheduleBean!!.deleteAsync().listen { rowsAffected ->
+                    Log.e(TAG, "onCreate: rowsAffected======${rowsAffected}")
+                    if (rowsAffected > 0) {
+                        showToast("删除成功")
+                        adapter.remove(position)
+                        adapter.notifyDataSetChanged()
+                    } else {
+                        showToast("删除失败")
+                    }
+                }
+
+            }
+
+            builder.show()
+
+            true
+
+        }
+
         txt_toolbar_end.setOnClickListener {
             initDatePicker()
         }
@@ -580,19 +610,19 @@ class MainActivity : AppCompatActivity() {
             this, DatePickerDialog.OnDateSetListener { view, year, month, dayOfMonth ->
 
                 val data = (month + 1).toString() + "月-" + dayOfMonth + "日"
-                Log.e(TAG, "onCreate: data======${data}")
+                Log.e(TAG, "initDatePicker: data======${data}")
 
                 val newCalendar = Calendar.getInstance();
                 newCalendar.set(Calendar.YEAR, year)
-                newCalendar.set(Calendar.MONTH, mMonth)
+                newCalendar.set(Calendar.MONTH, month)
                 newCalendar.set(Calendar.DAY_OF_MONTH, dayOfMonth)
 
                 newCalendar.set(Calendar.HOUR_OF_DAY, 0)
                 newCalendar.set(Calendar.MINUTE, 0)
                 newCalendar.set(Calendar.SECOND, 0)
                 newCalendar.set(Calendar.MILLISECOND, 0)
-                Log.e(TAG, "onCreate: newCal.date======${newCalendar.time}")
-                Log.e(TAG, "onCreate: newCal.time======${newCalendar.time.time}")
+                Log.e(TAG, "initDatePicker: newCal.date======${newCalendar.time}")
+                Log.e(TAG, "initDatePicker: newCal.time======${newCalendar.time.time}")
 
                 initHoursPicker(newCalendar)
 
@@ -639,7 +669,7 @@ class MainActivity : AppCompatActivity() {
                 val stampYearStr = sdfYear.format(newCalendar.time)
                 scheduleLeave.timeYear = sdfYear.parse(stampYearStr)!!.time
 
-                Log.e(TAG, "onNumberPicked: =${Gson().toJson(scheduleLeave)}")
+                Log.e(TAG, "onNumberPicked: scheduleLeave=${Gson().toJson(scheduleLeave)}")
 
                 scheduleLeave.saveAsync().listen { success ->
                     if (success) {
@@ -677,10 +707,10 @@ class MainActivity : AppCompatActivity() {
         val offCalendar: Calendar = Calendar.getInstance()
         offCalendar.time = Date(timeOff)
         val offHour = offCalendar.get(Calendar.HOUR_OF_DAY)
-        Log.e(TAG, "updateSchedule: offHour========${offHour}")
+        Log.e(TAG, "initAlarmHour: offHour========${offHour}")
 
         val offHours = offCalendar.get(Calendar.HOUR)
-        Log.e(TAG, "updateSchedule: offHours=======${offHours}")
+        Log.e(TAG, "initAlarmHour: offHours=======${offHours}")
 
         var alarmHour = 7
 
@@ -699,7 +729,7 @@ class MainActivity : AppCompatActivity() {
         if (offHour == 2) {
             alarmHour = 11
         }
-        Log.e(TAG, "updateSchedule: alarmHour======${alarmHour}")
+        Log.e(TAG, "initAlarmHour: alarmHour======${alarmHour}")
         return Pair(offHour, alarmHour)
     }
 
