@@ -25,6 +25,9 @@ class ScheduleAdapter(data: List<ScheduleBean>) :
 
     private var stampToday = sdfDay.parse(sdfDay.format(Date()))!!.time
 
+    //22:30:00以后打卡下班有10元宵夜补贴
+    private val supperTime = sdfTime.parse("22:30:00").time
+
     override fun convert(helper: BaseViewHolder, item: ScheduleBean) {
 
 //        Log.e(tags, "convert: item.timeOff======${item.timeOff}")
@@ -59,6 +62,14 @@ class ScheduleAdapter(data: List<ScheduleBean>) :
             "N/A"
         } else {
             sdfTime.format(Date(item.timeOff))
+        }
+
+        //将当天下班时间格式化成和日期无关的时间，然后获取从00：00：00到当前时间的总毫秒数
+        val offTime = sdfTime.parse(sdfTime.format(item.timeOff))
+        if (offTime!!.time > supperTime) {
+            helper.itemView.txt_item_off.setTextColor(Color.parseColor("#E53935"))
+        } else {
+            helper.itemView.txt_item_off.setTextColor(Color.parseColor("#5E5E5E"))
         }
 
 //        helper.itemView.txt_item_overtime.text = item.hours.times(item.multiple).toString()
